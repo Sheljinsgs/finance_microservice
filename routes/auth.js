@@ -79,35 +79,33 @@ router.post('/login', async (req, res) => {
             }
         };
 
+        if (!process.env.JWT_SECRET) {
+            console.error('JWT_SECRET is not defined in environment variables');
+            return res.status(500).json({ msg: 'Server configuration error: JWT_SECRET missing' });
+        }
+
         jwt.sign(
             payload,
             process.env.JWT_SECRET,
-            { expiresIn: '7d' }, // Token valid for 7 days
+            { expiresIn: '7d' },
             async (err, token) => {
-                if (err) throw err;
-
-                // 1. Clean up expired sessions (older than 7 days) - Optional, but good practice
-                // const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-                // user.sessions = user.sessions.filter(session => session.lastActive > sevenDaysAgo);
+                if (err) {
+                    console.error('JWT Sign Error:', err);
+                    return res.status(500).json({ msg: 'Error generating token' });
+                }
                 
-                // Initialize sessions if undefined
                 if (!user.sessions) user.sessions = [];
-
-                // 2. Check Device Limit (Max 2)
-                const maxSessions = 2; // Hardcoded or env
+                const maxSessions = parseInt(process.env.MAX_SESSIONS) || 2;
                 
                 if (user.sessions.length >= maxSessions) {
                     if (force) {
-                        // Remove oldest session
-                        // Sort by lastActive ascending (oldest first) just in case, though push appends to end
                         user.sessions.sort((a, b) => new Date(a.lastActive) - new Date(b.lastActive));
-                        user.sessions.shift(); // Remove the first (oldest)
+                        user.sessions.shift();
                     } else {
-                        return res.status(409).json({ msg: `Max ${maxSessions} devices reached. Login again to force logout other devices.` });
+                        return res.status(409).json({ msg: `Max ${maxSessions} devices reached.` });
                     }
                 }
 
-                // 3. Add new session
                 user.sessions.push({
                     token,
                     lastActive: new Date(),
@@ -115,7 +113,6 @@ router.post('/login', async (req, res) => {
                 });
 
                 await user.save();
-
                 res.json({ token });
             }
         );
