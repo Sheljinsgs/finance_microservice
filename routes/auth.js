@@ -120,8 +120,12 @@ router.post('/login', async (req, res) => {
             }
         );
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
+        console.error('Login Error:', err);
+        res.status(500).json({ 
+            msg: 'Server error', 
+            error: err.message,
+            stack: process.env.NODE_ENV === 'production' ? null : err.stack 
+        });
     }
 });
 
