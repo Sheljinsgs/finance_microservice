@@ -2,6 +2,12 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const dns = require('dns');
+
+// Force IPv4 first to fix 'querySrv ECONNREFUSED' on some Windows systems
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 dotenv.config();
 
@@ -18,6 +24,10 @@ mongoose.connect(process.env.MONGO_URI, { family: 4 })
 .catch(err => console.log(err));
 
 // Routes
+app.get('/', (req, res) => {
+  res.json({ message: 'Finance Microservice API is running' });
+});
+
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/income', require('./routes/income'));
 app.use('/api/expense', require('./routes/expense'));
