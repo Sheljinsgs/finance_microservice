@@ -19,20 +19,29 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 // Mongoose Configuration
-mongoose.set('bufferCommands', false);
+mongoose.set('bufferCommands', true); // Re-enable but with strict timeout
 
-// Connect to MongoDB
-console.log('Attempting to connect to MongoDB...');
-mongoose.connect(process.env.MONGO_URI, {
-  serverSelectionTimeoutMS: 5000, // Fail after 5 seconds instead of 30
-})
-.then(() => console.log('MongoDB connected successfully'))
-.catch(err => {
-  console.error('MongoDB connection error details:', err.message);
-  if (err.message.includes('whitelist')) {
-    console.error('ACTION REQUIRED: You must whitelist 0.0.0.0/0 in MongoDB Atlas!');
+// Database connection function
+const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) return;
+  
+  console.log('Connecting to MongoDB...');
+  return mongoose.connect(process.env.MONGO_URI, {
+    serverSelectionTimeoutMS: 5000,
+  });
+};
+
+// Middleware to ensure DB connection before any route
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ msg: 'Database connection error', error: err.message });
   }
 });
+
+connectDB().then(() => console.log('Initial MongoDB connection attempt finished'));
 
 // Routes
 app.get('/', (req, res) => {
